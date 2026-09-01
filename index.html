@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>소방안전 AR 농연 체험</title>
+  <title>증강현실 화재대피 시뮬레이터</title>
 
   <style>
     body, html {
@@ -13,11 +13,11 @@
       font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif;
     }
 
-    /* --- 소방 스타일 인트로 표지 --- */
+    /* --- 소방 컬러 인트로 표지 --- */
     #intro-screen {
       position: absolute; top: 0; left: 0;
       width: 100vw; height: 100vh;
-      background-color: #F38230; /* 소방 대표 주황색 */
+      background-color: #F38230; /* 소방 주황색 */
       z-index: 100;
       display: flex;
       flex-direction: column;
@@ -27,42 +27,42 @@
       text-align: center;
       cursor: pointer;
       transition: opacity 0.5s ease, visibility 0.5s ease;
-    }
-
-    .fire-symbol {
-      width: 160px;
-      height: auto;
-      margin-bottom: 24px;
-      filter: drop-shadow(0px 2px 8px rgba(0,0,0,0.15));
+      padding: 0 20px;
+      box-sizing: border-box;
     }
 
     .org-title {
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 800;
       letter-spacing: -0.5px;
-      margin-bottom: 8px;
-      text-shadow: 0px 1px 3px rgba(0,0,0,0.15);
+      margin-bottom: 12px;
+      text-shadow: 0px 2px 4px rgba(0,0,0,0.15);
     }
 
     .app-title {
-      font-size: 16px;
-      font-weight: 500;
-      opacity: 0.9;
-      margin-bottom: 60px;
+      font-size: 20px;
+      font-weight: 600;
+      opacity: 0.95;
+      margin-bottom: 70px;
+      letter-spacing: -0.5px;
+      background: rgba(0, 0, 0, 0.1);
+      padding: 8px 20px;
+      border-radius: 20px;
     }
 
     .start-prompt {
-      font-size: 15px;
-      font-weight: 600;
-      background: rgba(0, 0, 0, 0.15);
-      padding: 12px 28px;
-      border-radius: 25px;
-      border: 1px solid rgba(255, 255, 255, 0.4);
+      font-size: 16px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 14px 32px;
+      border-radius: 30px;
+      border: 1.5px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       animation: pulse 1.8s infinite ease-in-out;
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 0.6; transform: scale(0.98); }
+      0%, 100% { opacity: 0.7; transform: scale(0.97); }
       50% { opacity: 1; transform: scale(1.03); }
     }
 
@@ -113,22 +113,14 @@
 
 <body>
 
-  <!-- 1. 소방관서 표지 화면 (시작 시 노출) -->
+  <!-- 소방 스타일 표지 화면 (마크 제거) -->
   <div id="intro-screen">
-    <!-- 소방 새매 문양 SVG -->
-    <svg class="fire-symbol" viewBox="0 0 200 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M100 15 L115 45 L145 25 L135 60 L170 50 L145 80 L180 90 L130 95 L100 115 L70 95 L20 90 L55 80 L30 50 L65 60 L55 25 L85 45 Z" fill="#E2B035" stroke="#C39020" stroke-width="2"/>
-      <circle cx="100" cy="65" r="18" fill="#E2B035" stroke="#C39020" stroke-width="2"/>
-      <path d="M93 68 C93 60 107 60 107 68 C107 76 93 76 93 68 Z" fill="#D32F2F"/>
-      <polygon points="100,42 104,50 96,50" fill="#D32F2F"/>
-    </svg>
-
     <div class="org-title">대구서부소방서 예방안전과</div>
-    <div class="app-title">AR 화재 농연 대피 체험</div>
+    <div class="app-title">증강현실 화재대피 시뮬레이터</div>
     <div class="start-prompt">👆 화면을 터치하여 시작하세요</div>
   </div>
 
-  <!-- 2. AR 카메라 & 연기 레이어 -->
+  <!-- AR 카메라 & 연기 효과 -->
   <video id="webcam-video" autoplay playsinline muted></video>
 
   <svg style="display:none;">
@@ -204,7 +196,6 @@
       requestAnimationFrame(updateSmokeEffect);
     }
 
-    // 표지 터치 시 실행되는 시작 처리
     function startApp() {
       introScreen.style.opacity = '0';
       setTimeout(() => {
