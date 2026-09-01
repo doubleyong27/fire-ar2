@@ -36,10 +36,10 @@
       z-index: 2;
       pointer-events: none;
       opacity: 0.9;
-      transition: opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      transition: opacity 0.25s cubic-bezier(0.25, 1, 0.5, 1), transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
       
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0) 80%);
-      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0) 80%);
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 75%);
+      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 75%);
     }
 
     /* 레이어 1: 천장 심부 짙은 흑연 */
@@ -54,17 +54,16 @@
       animation: moveDark 18s infinite ease-in-out;
     }
 
-    /* 레이어 2 (신규 추가): 중앙 일렁이는 회색/연갈색 농연 */
+    /* 레이어 2: 중앙 일렁이는 회색/연갈색 농연 */
     .smoke-layer-gray {
       position: absolute;
       top: -25%;
       left: -20%;
       width: 140vw;
       height: 120vh;
-      /* 화재 현장 특유의 회색-연갈색 톤 입자 */
       background: radial-gradient(circle at 45% 35%, rgba(120, 115, 110, 0.75) 0%, rgba(60, 58, 55, 0.5) 40%, transparent 75%);
       filter: url(#smoke-texture-gray) blur(14px);
-      mix-blend-mode: screen; /* 실제 빛을 반사하는 회색 연기 질감 표현 */
+      mix-blend-mode: screen;
       animation: moveGray 11s infinite ease-in-out;
     }
 
@@ -98,6 +97,25 @@
       100% { transform: scale(1) translate(0, 0); }
     }
 
+    /* 3. 자세 감지 상태 표시 바 */
+    #status-bar {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-family: sans-serif;
+      font-size: 14px;
+      font-weight: bold;
+      z-index: 5;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
     /* 안내 메시지 */
     #start-notice {
       position: absolute;
@@ -122,7 +140,7 @@
 
   <video id="webcam-video" autoplay playsinline muted></video>
 
-  <!-- 실시간 회색 연기 전용 난류 필터 -->
+  <!-- 실시간 연기 난류 필터 -->
   <svg style="display:none;">
     <filter id="smoke-texture-1">
       <feTurbulence id="turbulence-1" type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="4" result="noise" />
@@ -141,12 +159,14 @@
     <div class="smoke-layer-light"></div>
   </div>
 
+  <div id="status-bar">자세 감지 준비 중...</div>
   <div id="start-notice">화면을 터치하여 체험을 시작하세요</div>
 
   <script>
     const video = document.getElementById('webcam-video');
     const smokeContainer = document.getElementById('smoke-container');
     const startNotice = document.getElementById('start-notice');
+    const statusBar = document.getElementById('status-bar');
 
     const turb1 = document.getElementById('turbulence-1');
     const turbGray = document.getElementById('turbulence-gray');
@@ -175,9 +195,8 @@
     }
 
     function updateSmokeEffect() {
-      // 회색 연기가 더 유기적으로 일렁이도록 전용 애니메이션 추가
+      // 연기 난류 실시간 애니메이션
       animateTime += 0.0025;
-      
       const freqX1 = 0.012 + Math.sin(animateTime) * 0.003;
       const freqY1 = 0.018 + Math.cos(animateTime * 1.5) * 0.003;
       turb1.setAttribute('baseFrequency', `${freqX1} ${freqY1}`);
@@ -186,21 +205,31 @@
       const freqYG = 0.025 + Math.sin(animateTime * 1.8) * 0.005;
       turbGray.setAttribute('baseFrequency', `${freqXG} ${freqYG}`);
 
-      // 높이 및 각도 계산
-      let heightScore = (currentAccY - 4) / 4.5;
-      heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
+      // 1m 이하 대피 자세 판정 알고리즘
+      // - currentBeta: 스마트폰이 기울어진 각도 (0~90도)
+      // - currentAccY: Y축 중력 가속도 (숙이거나 수평을 이룰수록 수치가 감소)
+      
+      const isLowedPosition = (currentBeta < 40) || (currentAccY < 6.5);
 
-      let lookUpScore = (currentBeta - 20) / 45;
-      lookUpScore = Math.min(Math.max(lookUpScore, 0.0), 1.0);
+      let translateY = 0;
+      let opacity = 0.9;
 
-      let finalScore = Math.max(heightScore, lookUpScore);
+      if (isLowedPosition) {
+        // [1m 이하 대피 자세 진입] -> 연기를 천장 위로 크게 밀어 올리고 시야 완전 확보
+        translateY = -65; // 연기 레이어를 위로 크게 이동
+        opacity = 0.12;   // 바닥 시야 훤히 보이도록 투명화
 
-      let translateY = (1 - finalScore) * -45; 
-      let opacity = 0.15 + (finalScore * 0.8);
+        statusBar.innerText = "🟢 대피 자세 (1m 이하) - 시야 확보됨";
+        statusBar.style.color = "#00ffcc";
+        statusBar.style.borderColor = "#00ffcc";
+      } else {
+        // [서 있는 높은 자세] -> 연기가 아래로 내려오며 시야 가림
+        translateY = -10;
+        opacity = 0.88;
 
-      if (finalScore < 0.35) {
-        translateY = -55;
-        opacity = 0.1;
+        statusBar.innerText = "🔴 직립 자세 - 농연 위험 (자세를 낮추세요)";
+        statusBar.style.color = "#ff4444";
+        statusBar.style.borderColor = "#ff4444";
       }
 
       smokeContainer.style.transform = `translateY(${translateY}%)`;
@@ -217,7 +246,7 @@
 
     function handleOrientation(event) {
       if (event.beta !== null) {
-        currentBeta = event.beta;
+        currentBeta = Math.abs(event.beta);
       }
     }
 
