@@ -35,65 +35,66 @@
       height: 100vh;
       z-index: 2;
       pointer-events: none;
-      opacity: 0.88;
+      opacity: 0.9;
       transition: opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
       
-      /* 상단 천장 집중 수평 마스크 */
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 75%);
-      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 75%);
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0) 80%);
+      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0) 80%);
     }
 
-    /* 연기 레이어 1: 메인 농연 레이어 */
-    .smoke-layer-1 {
+    /* 레이어 1: 천장 심부 짙은 흑연 */
+    .smoke-layer-dark {
       position: absolute;
       top: -35%;
       left: -25%;
       width: 150vw;
       height: 130vh;
-      background: radial-gradient(circle at 50% 30%, rgba(12, 12, 12, 0.98) 0%, rgba(5, 5, 5, 0.85) 45%, transparent 75%);
-      filter: url(#smoke-texture-1) blur(12px);
-      animation: moveLayer1 16s infinite ease-in-out;
+      background: radial-gradient(circle at 50% 30%, rgba(10, 10, 10, 0.98) 0%, rgba(3, 3, 3, 0.85) 45%, transparent 75%);
+      filter: url(#smoke-texture-1) blur(10px);
+      animation: moveDark 18s infinite ease-in-out;
     }
 
-    /* 연기 레이어 2: 유기적 기류 보조 레이어 */
-    .smoke-layer-2 {
+    /* 레이어 2 (신규 추가): 중앙 일렁이는 회색/연갈색 농연 */
+    .smoke-layer-gray {
       position: absolute;
       top: -25%;
-      left: -15%;
-      width: 130vw;
-      height: 115vh;
-      background: radial-gradient(circle at 40% 25%, rgba(28, 28, 28, 0.9) 0%, rgba(10, 10, 10, 0.7) 50%, transparent 80%);
-      filter: url(#smoke-texture-2) blur(18px);
-      animation: moveLayer2 11s infinite ease-in-out;
+      left: -20%;
+      width: 140vw;
+      height: 120vh;
+      /* 화재 현장 특유의 회색-연갈색 톤 입자 */
+      background: radial-gradient(circle at 45% 35%, rgba(120, 115, 110, 0.75) 0%, rgba(60, 58, 55, 0.5) 40%, transparent 75%);
+      filter: url(#smoke-texture-gray) blur(14px);
+      mix-blend-mode: screen; /* 실제 빛을 반사하는 회색 연기 질감 표현 */
+      animation: moveGray 11s infinite ease-in-out;
     }
 
-    /* 연기 레이어 3: 하부 미세 연기 레이어 */
-    .smoke-layer-3 {
+    /* 레이어 3: 하부 옅은 유동 연기 */
+    .smoke-layer-light {
       position: absolute;
       top: -15%;
       left: -10%;
-      width: 120vw;
-      height: 100vh;
-      background: radial-gradient(circle at 60% 20%, rgba(40, 40, 40, 0.6) 0%, rgba(15, 15, 15, 0.4) 40%, transparent 70%);
-      filter: url(#smoke-texture-1) blur(22px);
-      animation: moveLayer3 8s infinite ease-in-out;
+      width: 125vw;
+      height: 105vh;
+      background: radial-gradient(circle at 55% 25%, rgba(80, 80, 80, 0.5) 0%, rgba(20, 20, 20, 0.3) 45%, transparent 70%);
+      filter: url(#smoke-texture-1) blur(20px);
+      animation: moveLight 8s infinite ease-in-out;
     }
 
-    @keyframes moveLayer1 {
-      0% { transform: scale(1) translate(0, 0) rotate(0deg); }
-      50% { transform: scale(1.05) translate(-2%, 2%) rotate(1deg); }
-      100% { transform: scale(1) translate(0, 0) rotate(0deg); }
+    @keyframes moveDark {
+      0% { transform: scale(1) translate(0, 0); }
+      50% { transform: scale(1.05) translate(-2%, 2%); }
+      100% { transform: scale(1) translate(0, 0); }
     }
 
-    @keyframes moveLayer2 {
+    @keyframes moveGray {
       0% { transform: scale(1.02) translate(0, 0) rotate(0deg); }
-      50% { transform: scale(1.07) translate(2%, -1%) rotate(-1deg); }
+      50% { transform: scale(1.09) translate(3%, -2%) rotate(2deg); }
       100% { transform: scale(1.02) translate(0, 0) rotate(0deg); }
     }
 
-    @keyframes moveLayer3 {
+    @keyframes moveLight {
       0% { transform: scale(1) translate(0, 0); }
-      50% { transform: scale(1.04) translate(-1%, -1%); }
+      50% { transform: scale(1.06) translate(-1%, -1%); }
       100% { transform: scale(1) translate(0, 0); }
     }
 
@@ -121,23 +122,23 @@
 
   <video id="webcam-video" autoplay playsinline muted></video>
 
-  <!-- 동적 연기 난류 필터 생성기 -->
+  <!-- 실시간 회색 연기 전용 난류 필터 -->
   <svg style="display:none;">
     <filter id="smoke-texture-1">
       <feTurbulence id="turbulence-1" type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="4" result="noise" />
       <feDisplacementMap in="SourceGraphic" in2="noise" scale="55" xChannelSelector="R" yChannelSelector="G" />
     </filter>
-    <filter id="smoke-texture-2">
-      <feTurbulence id="turbulence-2" type="fractalNoise" baseFrequency="0.02 0.01" numOctaves="3" result="noise" />
-      <feDisplacementMap in="SourceGraphic" in2="noise" scale="40" xChannelSelector="R" yChannelSelector="G" />
+    <filter id="smoke-texture-gray">
+      <feTurbulence id="turbulence-gray" type="fractalNoise" baseFrequency="0.018 0.025" numOctaves="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="65" xChannelSelector="R" yChannelSelector="G" />
     </filter>
   </svg>
 
-  <!-- 실감 농연 레이어 -->
+  <!-- 3중 입체 농연 레이어 -->
   <div id="smoke-container">
-    <div class="smoke-layer-1"></div>
-    <div class="smoke-layer-2"></div>
-    <div class="smoke-layer-3"></div>
+    <div class="smoke-layer-dark"></div>
+    <div class="smoke-layer-gray"></div>
+    <div class="smoke-layer-light"></div>
   </div>
 
   <div id="start-notice">화면을 터치하여 체험을 시작하세요</div>
@@ -148,7 +149,7 @@
     const startNotice = document.getElementById('start-notice');
 
     const turb1 = document.getElementById('turbulence-1');
-    const turb2 = document.getElementById('turbulence-2');
+    const turbGray = document.getElementById('turbulence-gray');
 
     let currentAccY = 9.8;
     let currentBeta = 0;
@@ -174,28 +175,28 @@
     }
 
     function updateSmokeEffect() {
-      // 1. 연기 난류(Turbulence) 실시간 애니메이션 (연기가 일렁이듯 움직이는 기류 연출)
-      animateTime += 0.002;
+      // 회색 연기가 더 유기적으로 일렁이도록 전용 애니메이션 추가
+      animateTime += 0.0025;
+      
       const freqX1 = 0.012 + Math.sin(animateTime) * 0.003;
       const freqY1 = 0.018 + Math.cos(animateTime * 1.5) * 0.003;
       turb1.setAttribute('baseFrequency', `${freqX1} ${freqY1}`);
 
-      const freqX2 = 0.02 + Math.cos(animateTime * 0.8) * 0.004;
-      const freqY2 = 0.01 + Math.sin(animateTime * 1.2) * 0.002;
-      turb2.setAttribute('baseFrequency', `${freqX2} ${freqY2}`);
+      const freqXG = 0.018 + Math.cos(animateTime * 1.2) * 0.005;
+      const freqYG = 0.025 + Math.sin(animateTime * 1.8) * 0.005;
+      turbGray.setAttribute('baseFrequency', `${freqXG} ${freqYG}`);
 
-      // 2. 높이 점수 감도
+      // 높이 및 각도 계산
       let heightScore = (currentAccY - 4) / 4.5;
       heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
 
-      // 3. 시선 각도 감도
       let lookUpScore = (currentBeta - 20) / 45;
       lookUpScore = Math.min(Math.max(lookUpScore, 0.0), 1.0);
 
       let finalScore = Math.max(heightScore, lookUpScore);
 
       let translateY = (1 - finalScore) * -45; 
-      let opacity = 0.1 + (finalScore * 0.82);
+      let opacity = 0.15 + (finalScore * 0.8);
 
       if (finalScore < 0.35) {
         translateY = -55;
