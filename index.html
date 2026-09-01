@@ -26,7 +26,7 @@
       z-index: 1;
     }
 
-    /* 2. 입체 연기 컨테이너 */
+    /* 2. 입체 연기 컨테이너 (움직임을 묵직하고 부드럽게 설정) */
     #smoke-container {
       position: absolute;
       top: -20vh;
@@ -36,7 +36,8 @@
       z-index: 2;
       pointer-events: none;
       opacity: 0.98;
-      transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+      /* 트랜지션 시간을 0.15s -> 0.8s로 확장하여 반응 속도를 둔화시킴 */
+      transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
       
       mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.98) 60%, rgba(0,0,0,0) 95%);
       -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.98) 60%, rgba(0,0,0,0) 95%);
@@ -85,7 +86,7 @@
     @keyframes moveGray {
       0% { transform: scale(1.02) translate(0, 0) rotate(0deg); }
       50% { transform: scale(1.09) translate(3%, -2%) rotate(2deg); }
-      100% { transform: scale(1) translate(0, 0); }
+      100% { transform: scale(1.02) translate(0, 0) rotate(0deg); }
     }
 
     @keyframes moveLight {
@@ -144,15 +145,13 @@
     const turb1 = document.getElementById('turbulence-1');
     const turbGray = document.getElementById('turbulence-gray');
 
-    let currentBeta = 90;
+    let rawBeta = 90;
+    let smoothBeta = 90; // 완충 처리된 실시간 각도
     let animateTime = 0;
 
-    // iOS 사파리 호환 카메라 호출
     async function startCamera() {
       const constraints = {
-        video: {
-          facingMode: { ideal: "environment" } // exact 대신 ideal 사용으로 iOS 호환성 강화
-        },
+        video: { facingMode: { ideal: "environment" } },
         audio: false
       };
 
@@ -162,7 +161,6 @@
         await video.play();
       } catch (err) {
         console.error("Camera access error:", err);
-        alert("카메라 접근 권한이 거부되었거나 지원되지 않는 환경입니다.");
       }
     }
 
@@ -177,7 +175,10 @@
       const freqYG = 0.028 + Math.sin(animateTime * 1.8) * 0.005;
       turbGray.setAttribute('baseFrequency', `${freqXG} ${freqYG}`);
 
-      let progress = (80 - currentBeta) / 35;
+      // [부드러운 추종 보간법] 각도 변화율 완화 (0.03 수치가 작을수록 움직임이 더욱 둔해짐)
+      smoothBeta += (rawBeta - smoothBeta) * 0.03;
+
+      let progress = (80 - smoothBeta) / 35;
       progress = Math.min(Math.max(progress, 0.0), 1.0);
 
       let translateY = -(progress * 45); 
@@ -191,19 +192,16 @@
 
     function handleOrientation(event) {
       if (event.beta !== null) {
-        currentBeta = Math.abs(event.beta);
+        rawBeta = Math.abs(event.beta);
       }
     }
 
-    // iOS 전용 센서 권한 요청 핸들러
     async function requestSensorPermission() {
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
           const response = await DeviceOrientationEvent.requestPermission();
           if (response === 'granted') {
             window.addEventListener('deviceorientation', handleOrientation, true);
-          } else {
-            alert('동작 센서 권한이 거부되었습니다.');
           }
         } catch (error) {
           console.error(error);
@@ -220,7 +218,6 @@
       updateSmokeEffect();
     }
 
-    // 터치 및 클릭 이벤트 리스너
     startNotice.addEventListener('click', initApp);
     startNotice.addEventListener('touchstart', initApp);
   </script>
