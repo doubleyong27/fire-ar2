@@ -54,17 +54,16 @@
       animation: moveDark 18s infinite ease-in-out;
     }
 
-    /* 레이어 2 (신규 추가): 중앙 일렁이는 회색/연갈색 농연 */
+    /* 레이어 2: 중앙 일렁이는 회색/연갈색 농연 */
     .smoke-layer-gray {
       position: absolute;
       top: -25%;
       left: -20%;
       width: 140vw;
       height: 120vh;
-      /* 화재 현장 특유의 회색-연갈색 톤 입자 */
       background: radial-gradient(circle at 45% 35%, rgba(120, 115, 110, 0.75) 0%, rgba(60, 58, 55, 0.5) 40%, transparent 75%);
       filter: url(#smoke-texture-gray) blur(14px);
-      mix-blend-mode: screen; /* 실제 빛을 반사하는 회색 연기 질감 표현 */
+      mix-blend-mode: screen;
       animation: moveGray 11s infinite ease-in-out;
     }
 
@@ -151,8 +150,7 @@
     const turb1 = document.getElementById('turbulence-1');
     const turbGray = document.getElementById('turbulence-gray');
 
-    let currentAccY = 9.8;
-    let currentBeta = 0;
+    let currentBeta = 90;
     let animateTime = 0;
 
     async function startCamera() {
@@ -175,7 +173,7 @@
     }
 
     function updateSmokeEffect() {
-      // 회색 연기가 더 유기적으로 일렁이도록 전용 애니메이션 추가
+      // 실시간 기류 일렁임
       animateTime += 0.0025;
       
       const freqX1 = 0.012 + Math.sin(animateTime) * 0.003;
@@ -186,22 +184,14 @@
       const freqYG = 0.025 + Math.sin(animateTime * 1.8) * 0.005;
       turbGray.setAttribute('baseFrequency', `${freqXG} ${freqYG}`);
 
-      // 높이 및 각도 계산
-      let heightScore = (currentAccY - 4) / 4.5;
-      heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
+      // 완화된 각도 계산 (currentBeta: 90도 수직, 0도 바닥)
+      // 정면(90도) 근처에서는 서서히 닫히고, 60도 이하(약간만 아래를 봄)로 내려가면 연기가 크게 밀려 올라감
+      let lookDownScore = (75 - currentBeta) / 50; 
+      lookDownScore = Math.min(Math.max(lookDownScore, 0.0), 1.0);
 
-      let lookUpScore = (currentBeta - 20) / 45;
-      lookUpScore = Math.min(Math.max(lookUpScore, 0.0), 1.0);
-
-      let finalScore = Math.max(heightScore, lookUpScore);
-
-      let translateY = (1 - finalScore) * -45; 
-      let opacity = 0.15 + (finalScore * 0.8);
-
-      if (finalScore < 0.35) {
-        translateY = -55;
-        opacity = 0.1;
-      }
+      // 연기 위치 및 투명도 반영
+      let translateY = lookDownScore * -60; // 약간만 숙여도 연기가 위로 많이 올라감
+      let opacity = 0.9 - (lookDownScore * 0.8); // 숙일수록 투명해져 시야 확보
 
       smokeContainer.style.transform = `translateY(${translateY}%)`;
       smokeContainer.style.opacity = opacity;
@@ -209,15 +199,9 @@
       requestAnimationFrame(updateSmokeEffect);
     }
 
-    function handleMotion(event) {
-      if (event.accelerationIncludingGravity) {
-        currentAccY = Math.abs(event.accelerationIncludingGravity.y || 9.8);
-      }
-    }
-
     function handleOrientation(event) {
       if (event.beta !== null) {
-        currentBeta = event.beta;
+        currentBeta = Math.abs(event.beta);
       }
     }
 
@@ -228,16 +212,13 @@
       if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
         try {
           const orientPermission = await DeviceOrientationEvent.requestPermission();
-          const motionPermission = await DeviceMotionEvent.requestPermission();
-          if (orientPermission === 'granted' && motionPermission === 'granted') {
-            window.addEventListener('devicemotion', handleMotion);
+          if (orientPermission === 'granted') {
             window.addEventListener('deviceorientation', handleOrientation);
           }
         } catch (e) {
           console.error(e);
         }
       } else {
-        window.addEventListener('devicemotion', handleMotion);
         window.addEventListener('deviceorientation', handleOrientation);
       }
 
