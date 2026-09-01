@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>소방안전 AR 농연 체험</title>
+  <!-- 1. A-Frame 3D 라이브러리 불러오기 -->
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+</head>
+
+<body style="margin: 0; overflow: hidden;">
+  <!-- 2. AR 화면 오버레이 구성 -->
+  <a-scene embedded vr-mode-ui="enabled: false">
+    <a-entity id="rig" position="0 1.6 0">
+      <a-camera id="camera" look-controls></a-camera>
+      <!-- 화면 전면을 가리는 연기 레이어 -->
+      <a-plane id="smoke-overlay" 
+               position="0 0 -0.5" 
+               width="2" height="2" 
+               color="#000000" 
+               material="transparent: true; opacity: 0.8;">
+      </a-plane>
+    </a-entity>
+  </a-scene>
+
+  <!-- 3. 높이 감지 자바스크립트 코드 -->
+  <script>
+    const smokeOverlay = document.querySelector('#smoke-overlay');
+
+    function handleMotion(event) {
+      const accY = event.accelerationIncludingGravity.y; 
+      if (accY !== null) {
+        // 기울기/높이에 따라 투명도(opacity) 계산
+        let opacity = (accY - 2) / 8;
+        opacity = Math.min(Math.max(opacity, 0.0), 0.8);
+        smokeOverlay.setAttribute('material', 'opacity', opacity);
+      }
+    }
+
+    window.addEventListener('load', () => {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        document.body.addEventListener('click', () => {
+          DeviceMotionEvent.requestPermission().then(response => {
+            if (response === 'granted') {
+              window.addEventListener('devicemotion', handleMotion);
+            }
+          });
+        }, { once: true });
+      } else {
+        window.addEventListener('devicemotion', handleMotion);
+      }
+    });
+  </script>
+</body>
+</html>
