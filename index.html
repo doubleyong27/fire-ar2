@@ -35,47 +35,47 @@
       height: 100vh;
       z-index: 2;
       pointer-events: none;
-      opacity: 0.9;
-      transition: opacity 0.25s cubic-bezier(0.25, 1, 0.5, 1), transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+      opacity: 0.95;
+      transition: opacity 0.2s cubic-bezier(0.25, 1, 0.5, 1), transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
       
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 75%);
-      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 75%);
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 50%, rgba(0,0,0,0) 90%);
+      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 50%, rgba(0,0,0,0) 90%);
     }
 
-    /* 레이어 1: 천장 심부 짙은 흑연 */
+    /* 레이어 1: 1.5m용 암전 흑연 */
     .smoke-layer-dark {
       position: absolute;
-      top: -35%;
+      top: -30%;
       left: -25%;
       width: 150vw;
-      height: 130vh;
-      background: radial-gradient(circle at 50% 30%, rgba(10, 10, 10, 0.98) 0%, rgba(3, 3, 3, 0.85) 45%, transparent 75%);
-      filter: url(#smoke-texture-1) blur(10px);
+      height: 140vh;
+      background: radial-gradient(circle at 50% 40%, rgba(5, 5, 5, 0.99) 0%, rgba(2, 2, 2, 0.92) 50%, transparent 85%);
+      filter: url(#smoke-texture-1) blur(8px);
       animation: moveDark 18s infinite ease-in-out;
     }
 
-    /* 레이어 2: 중앙 일렁이는 회색/연갈색 농연 */
+    /* 레이어 2: 회색/연갈색 일렁이는 농연 */
     .smoke-layer-gray {
       position: absolute;
-      top: -25%;
+      top: -20%;
       left: -20%;
       width: 140vw;
-      height: 120vh;
-      background: radial-gradient(circle at 45% 35%, rgba(120, 115, 110, 0.75) 0%, rgba(60, 58, 55, 0.5) 40%, transparent 75%);
-      filter: url(#smoke-texture-gray) blur(14px);
+      height: 130vh;
+      background: radial-gradient(circle at 45% 40%, rgba(130, 125, 120, 0.85) 0%, rgba(50, 48, 45, 0.65) 45%, transparent 80%);
+      filter: url(#smoke-texture-gray) blur(12px);
       mix-blend-mode: screen;
       animation: moveGray 11s infinite ease-in-out;
     }
 
-    /* 레이어 3: 하부 옅은 유동 연기 */
+    /* 레이어 3: 하부 이동 연기 */
     .smoke-layer-light {
       position: absolute;
-      top: -15%;
+      top: -10%;
       left: -10%;
       width: 125vw;
-      height: 105vh;
-      background: radial-gradient(circle at 55% 25%, rgba(80, 80, 80, 0.5) 0%, rgba(20, 20, 20, 0.3) 45%, transparent 70%);
-      filter: url(#smoke-texture-1) blur(20px);
+      height: 120vh;
+      background: radial-gradient(circle at 55% 30%, rgba(90, 90, 90, 0.6) 0%, rgba(20, 20, 20, 0.4) 50%, transparent 75%);
+      filter: url(#smoke-texture-1) blur(16px);
       animation: moveLight 8s infinite ease-in-out;
     }
 
@@ -97,15 +97,15 @@
       100% { transform: scale(1) translate(0, 0); }
     }
 
-    /* 3. 자세 감지 상태 표시 바 */
+    /* 3. 높이/자세 상태 표시 바 */
     #status-bar {
       position: absolute;
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.75);
-      color: #00ffcc;
-      border: 1px solid #00ffcc;
+      background: rgba(0, 0, 0, 0.85);
+      color: #ff4444;
+      border: 1px solid #ff4444;
       padding: 8px 18px;
       border-radius: 20px;
       font-family: sans-serif;
@@ -172,7 +172,7 @@
     const turbGray = document.getElementById('turbulence-gray');
 
     let currentAccY = 9.8;
-    let currentBeta = 0;
+    let currentBeta = 90;
     let animateTime = 0;
 
     async function startCamera() {
@@ -195,7 +195,7 @@
     }
 
     function updateSmokeEffect() {
-      // 연기 난류 실시간 애니메이션
+      // 실시간 기류 애니메이션
       animateTime += 0.0025;
       const freqX1 = 0.012 + Math.sin(animateTime) * 0.003;
       const freqY1 = 0.018 + Math.cos(animateTime * 1.5) * 0.003;
@@ -205,31 +205,38 @@
       const freqYG = 0.025 + Math.sin(animateTime * 1.8) * 0.005;
       turbGray.setAttribute('baseFrequency', `${freqXG} ${freqYG}`);
 
-      // 1m 이하 대피 자세 판정 알고리즘
-      // - currentBeta: 스마트폰이 기울어진 각도 (0~90도)
-      // - currentAccY: Y축 중력 가속도 (숙이거나 수평을 이룰수록 수치가 감소)
+      // 감도 대폭 보정: 정면 수직(90도) 대비 조금만 숙여도(55도 이하) 숙인 자세로 판단
+      // beta 수치: 90도(완전 직립 정면), 0도(완전 평평 바닥)
       
-      const isLowedPosition = (currentBeta < 40) || (currentAccY < 6.5);
-
       let translateY = 0;
-      let opacity = 0.9;
+      let opacity = 0.96;
 
-      if (isLowedPosition) {
-        // [1m 이하 대피 자세 진입] -> 연기를 천장 위로 크게 밀어 올리고 시야 완전 확보
-        translateY = -65; // 연기 레이어를 위로 크게 이동
-        opacity = 0.12;   // 바닥 시야 훤히 보이도록 투명화
+      if (currentBeta > 65 && currentAccY > 7.5) {
+        // [1.5m 높이 - 직립 자세]: 연기가 거의 전체를 덮어 앞이 보이지 않음
+        translateY = 15; // 연기 레이어를 바닥 쪽으로 끌어내림
+        opacity = 0.96;  // 시야 96% 차단
 
-        statusBar.innerText = "🟢 대피 자세 (1m 이하) - 시야 확보됨";
-        statusBar.style.color = "#00ffcc";
-        statusBar.style.borderColor = "#00ffcc";
-      } else {
-        // [서 있는 높은 자세] -> 연기가 아래로 내려오며 시야 가림
-        translateY = -10;
-        opacity = 0.88;
-
-        statusBar.innerText = "🔴 직립 자세 - 농연 위험 (자세를 낮추세요)";
+        statusBar.innerText = "🔴 약 1.5m 높이 (직립) - 농연으로 시야 차단됨";
         statusBar.style.color = "#ff4444";
         statusBar.style.borderColor = "#ff4444";
+      } 
+      else if (currentBeta > 40 && currentBeta <= 65) {
+        // [1.2m 높이 - 중간 숙임 자세]: 연기가 조금 위로 올라가며 대피로 윤곽이 서서히 보임
+        translateY = -25;
+        opacity = 0.45;
+
+        statusBar.innerText = "🟡 약 1.2m 높이 - 자세를 더 낮추세요";
+        statusBar.style.color = "#ffcc00";
+        statusBar.style.borderColor = "#ffcc00";
+      } 
+      else {
+        // [1m 이하 - 대피 자세]: 고개를 조금만 더 숙여도 연기가 위로 쓸려 올라가 시야가 완전히 확보됨
+        translateY = -65;
+        opacity = 0.08;
+
+        statusBar.innerText = "🟢 1m 이하 (대피 자세) - 시야 완전 확보";
+        statusBar.style.color = "#00ffcc";
+        statusBar.style.borderColor = "#00ffcc";
       }
 
       smokeContainer.style.transform = `translateY(${translateY}%)`;
@@ -246,6 +253,7 @@
 
     function handleOrientation(event) {
       if (event.beta !== null) {
+        // beta 절대값 처리 (스마트폰 앞/뒤 기울기)
         currentBeta = Math.abs(event.beta);
       }
     }
