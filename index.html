@@ -29,7 +29,7 @@
     function handleMotion(event) {
       const accY = event.accelerationIncludingGravity.y; 
       if (accY !== null) {
-        // 기울기/높이에 따라 투명도(opacity) 계산
+        // 높이에 따라 투명도(opacity) 계산
         let opacity = (accY - 2) / 8;
         opacity = Math.min(Math.max(opacity, 0.0), 0.8);
         smokeOverlay.setAttribute('material', 'opacity', opacity);
