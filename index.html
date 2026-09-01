@@ -26,7 +26,7 @@
       z-index: 1;
     }
 
-    /* 2. 천장 체류형 농연 컨테이너 */
+    /* 2. 균일하고 부드러운 천장 농연 컨테이너 */
     #smoke-container {
       position: absolute;
       top: 0;
@@ -36,53 +36,54 @@
       z-index: 2;
       pointer-events: none;
       opacity: 0.85;
-      transition: opacity 0.2s ease, transform 0.2s ease;
+      transition: opacity 0.3s ease, transform 0.3s ease;
       
-      /* 천장(상단)은 짙고 바닥(하단)은 투명하게 비치는 수평 마스크 */
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0) 85%);
-      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0) 85%);
+      /* 상단은 짙고 하단으로 갈수록 자연스럽게 흩어지는 그라데이션 */
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 45%, rgba(0,0,0,0) 85%);
+      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 45%, rgba(0,0,0,0) 85%);
     }
 
-    /* 연기 입자 레이어 1 (상단 체류 연기) */
+    /* 연기 레이어 1: 부드럽게 퍼지는 메인 베이스 연기 */
     .smoke-layer-1 {
       position: absolute;
-      top: -15%;
-      left: -20%;
-      width: 140vw;
-      height: 100vh;
+      top: -30%;
+      left: -30%;
+      width: 160vw;
+      height: 120vh;
       background-image: url('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/lava/cloud.png');
-      background-size: cover;
-      background-position: top center;
-      filter: invert(1) brightness(0.12) contrast(1.8);
+      background-size: 180% 180%; /* 스케일을 크게 늘려 얼룩 자국 제거 */
+      background-position: center;
+      /* 블러(blur)를 주어 얼룩덜룩한 경계를 매끄럽게 뭉갬 */
+      filter: invert(1) brightness(0.18) contrast(1.1) blur(10px);
       mix-blend-mode: multiply;
-      animation: ceilingSmoke1 14s infinite ease-in-out;
+      animation: smoothSmoke1 20s infinite ease-in-out;
     }
 
-    /* 연기 입자 레이어 2 (기류 흐름 연기) */
+    /* 연기 레이어 2: 은은하게 움직이는 하부 보조 연기 */
     .smoke-layer-2 {
       position: absolute;
-      top: -10%;
+      top: -20%;
       left: -20%;
       width: 140vw;
-      height: 90vh;
+      height: 110vh;
       background-image: url('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/lava/cloud.png');
-      background-size: 80% 80%;
+      background-size: 140% 140%;
       background-position: top center;
-      filter: invert(1) brightness(0.08) contrast(2.2);
-      opacity: 0.7;
-      animation: ceilingSmoke2 9s infinite linear;
+      filter: invert(1) brightness(0.12) contrast(1.2) blur(15px);
+      opacity: 0.75;
+      animation: smoothSmoke2 14s infinite ease-in-out;
     }
 
-    /* 천장에서 연기가 넘실거리는 애니메이션 */
-    @keyframes ceilingSmoke1 {
+    /* 얼룩 없이 부드럽게 넘실거리는 애니메이션 */
+    @keyframes smoothSmoke1 {
       0% { transform: scale(1) translate(0, 0); }
-      50% { transform: scale(1.06) translate(-2%, -1%); }
+      50% { transform: scale(1.05) translate(-2%, 1%); }
       100% { transform: scale(1) translate(0, 0); }
     }
 
-    @keyframes ceilingSmoke2 {
+    @keyframes smoothSmoke2 {
       0% { transform: scale(1.02) translate(0, 0); }
-      50% { transform: scale(1.08) translate(2%, 2%); }
+      50% { transform: scale(1.07) translate(2%, -1%); }
       100% { transform: scale(1.02) translate(0, 0); }
     }
 
@@ -110,7 +111,7 @@
 
   <video id="webcam-video" autoplay playsinline muted></video>
 
-  <!-- 천장 체류형 농연 레이어 -->
+  <!-- 얼룩 없이 균일하게 퍼지는 천장 농연 레이어 -->
   <div id="smoke-container">
     <div class="smoke-layer-1"></div>
     <div class="smoke-layer-2"></div>
@@ -146,7 +147,6 @@
     }
 
     function updateSmokeEffect() {
-      // 1. 높이 및 시선 계산
       let heightScore = (currentAccY - 3) / 6;
       heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
 
@@ -155,15 +155,12 @@
 
       let finalScore = Math.max(heightScore, lookUpScore);
 
-      // 2. 고개를 들거나 서 있을 때: 연기가 화면 아래로 내려오면서 전체를 가림
-      // 숙이고 바닥을 볼 때: 연기 레이어가 위로 이동하며 아래쪽 시야가 훤히 트임
-      let translateY = (1 - finalScore) * -35; // 위로 밀려나는 위치값 (%)
-      let opacity = 0.35 + (finalScore * 0.55); // 농도 조절
+      let translateY = (1 - finalScore) * -35; 
+      let opacity = 0.3 + (finalScore * 0.6); 
 
       if (heightScore < 0.15 && lookUpScore < 0.15) {
-        // 완전 숙였을 때는 상단에만 살짝 연기 층만 남고 바닥은 완전 맑음
         translateY = -50;
-        opacity = 0.2;
+        opacity = 0.15;
       }
 
       smokeContainer.style.transform = `translateY(${translateY}%)`;
