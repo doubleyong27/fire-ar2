@@ -35,11 +35,12 @@
       height: 100vh;
       z-index: 2;
       pointer-events: none;
-      opacity: 0.9;
-      transition: opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      opacity: 0.95;
+      /* 자연스러운 각도 추적을 위해 프레임 단위 매끄러운 전환 */
+      transition: opacity 0.15s ease-out, transform 0.15s ease-out;
       
-      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0) 80%);
-      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 40%, rgba(0,0,0,0) 80%);
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 45%, rgba(0,0,0,0) 85%);
+      -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 45%, rgba(0,0,0,0) 85%);
     }
 
     /* 레이어 1: 천장 심부 짙은 흑연 */
@@ -49,33 +50,34 @@
       left: -25%;
       width: 150vw;
       height: 130vh;
-      background: radial-gradient(circle at 50% 30%, rgba(10, 10, 10, 0.98) 0%, rgba(3, 3, 3, 0.85) 45%, transparent 75%);
-      filter: url(#smoke-texture-1) blur(10px);
+      background: radial-gradient(circle at 50% 30%, rgba(5, 5, 5, 0.99) 0%, rgba(2, 2, 2, 0.90) 50%, transparent 80%);
+      filter: url(#smoke-texture-1) blur(8px);
       animation: moveDark 18s infinite ease-in-out;
     }
 
-    /* 레이어 2: 중앙 일렁이는 회색/연갈색 농연 */
+    /* 레이어 2: 짙고 빽빽해진 진한 회색 농연 */
     .smoke-layer-gray {
       position: absolute;
       top: -25%;
       left: -20%;
       width: 140vw;
-      height: 120vh;
-      background: radial-gradient(circle at 45% 35%, rgba(120, 115, 110, 0.75) 0%, rgba(60, 58, 55, 0.5) 40%, transparent 75%);
-      filter: url(#smoke-texture-gray) blur(14px);
+      height: 125vh;
+      /* 농도를 대폭 올린 짙은 회색 톤 적용 */
+      background: radial-gradient(circle at 45% 35%, rgba(160, 155, 150, 0.92) 0%, rgba(80, 75, 70, 0.75) 45%, transparent 80%);
+      filter: url(#smoke-texture-gray) blur(10px);
       mix-blend-mode: screen;
       animation: moveGray 11s infinite ease-in-out;
     }
 
-    /* 레이어 3: 하부 옅은 유동 연기 */
+    /* 레이어 3: 하부 유동 연기 */
     .smoke-layer-light {
       position: absolute;
       top: -15%;
       left: -10%;
       width: 125vw;
-      height: 105vh;
-      background: radial-gradient(circle at 55% 25%, rgba(80, 80, 80, 0.5) 0%, rgba(20, 20, 20, 0.3) 45%, transparent 70%);
-      filter: url(#smoke-texture-1) blur(20px);
+      height: 110vh;
+      background: radial-gradient(circle at 55% 25%, rgba(110, 110, 110, 0.7) 0%, rgba(40, 40, 40, 0.5) 50%, transparent 75%);
+      filter: url(#smoke-texture-1) blur(16px);
       animation: moveLight 8s infinite ease-in-out;
     }
 
@@ -128,8 +130,8 @@
       <feDisplacementMap in="SourceGraphic" in2="noise" scale="55" xChannelSelector="R" yChannelSelector="G" />
     </filter>
     <filter id="smoke-texture-gray">
-      <feTurbulence id="turbulence-gray" type="fractalNoise" baseFrequency="0.018 0.025" numOctaves="3" result="noise" />
-      <feDisplacementMap in="SourceGraphic" in2="noise" scale="65" xChannelSelector="R" yChannelSelector="G" />
+      <feTurbulence id="turbulence-gray" type="fractalNoise" baseFrequency="0.02 0.028" numOctaves="4" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="75" xChannelSelector="R" yChannelSelector="G" />
     </filter>
   </svg>
 
@@ -180,18 +182,20 @@
       const freqY1 = 0.018 + Math.cos(animateTime * 1.5) * 0.003;
       turb1.setAttribute('baseFrequency', `${freqX1} ${freqY1}`);
 
-      const freqXG = 0.018 + Math.cos(animateTime * 1.2) * 0.005;
-      const freqYG = 0.025 + Math.sin(animateTime * 1.8) * 0.005;
+      const freqXG = 0.02 + Math.cos(animateTime * 1.2) * 0.005;
+      const freqYG = 0.028 + Math.sin(animateTime * 1.8) * 0.005;
       turbGray.setAttribute('baseFrequency', `${freqXG} ${freqYG}`);
 
-      // 완화된 각도 계산 (currentBeta: 90도 수직, 0도 바닥)
-      // 정면(90도) 근처에서는 서서히 닫히고, 60도 이하(약간만 아래를 봄)로 내려가면 연기가 크게 밀려 올라감
-      let lookDownScore = (75 - currentBeta) / 50; 
-      lookDownScore = Math.min(Math.max(lookDownScore, 0.0), 1.0);
+      // 각도 추적 비율 계산 (currentBeta: 90도 수직, 0도 바닥)
+      // 85도(직립) ~ 25도(숙임) 범위 내에서 매끄럽게 선형 변화
+      let progress = (85 - currentBeta) / 60;
+      progress = Math.min(Math.max(progress, 0.0), 1.0);
 
-      // 연기 위치 및 투명도 반영
-      let translateY = lookDownScore * -60; // 약간만 숙여도 연기가 위로 많이 올라감
-      let opacity = 0.9 - (lookDownScore * 0.8); // 숙일수록 투명해져 시야 확보
+      // 1. 위치 변화: 고개를 숙일수록(progress 증가) 연기가 위로 이동 (-48%까지)
+      let translateY = progress * -48; 
+
+      // 2. 투명도 완화: 연기가 완전히 사라지지 않고 최소 0.28(28%) 농도를 유지함
+      let opacity = 0.95 - (progress * 0.67); 
 
       smokeContainer.style.transform = `translateY(${translateY}%)`;
       smokeContainer.style.opacity = opacity;
