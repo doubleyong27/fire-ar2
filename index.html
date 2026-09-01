@@ -3,15 +3,14 @@
 <head>
   <meta charset="utf-8">
   <title>소방안전 AR 농연 체험</title>
-  <!-- A-Frame 및 WebAR 카메라 라이브러리 -->
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 </head>
 
 <body style="margin: 0; overflow: hidden;">
-  <!-- 아이폰 Safari 카메라 및 센서 자동 연동 -->
   <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
     <a-entity id="rig" position="0 1.6 0">
+      <!-- look-controls로 스마트폰 시선 방향 추적 -->
       <a-camera id="camera" look-controls></a-camera>
       
       <!-- 화면 가림 연기 오버레이 -->
@@ -26,19 +25,44 @@
 
   <script>
     const smokeOverlay = document.querySelector('#smoke-overlay');
+    const camera = document.querySelector('#camera');
 
-    function handleMotion(event) {
-      const accY = event.accelerationIncludingGravity.y; 
-      if (accY !== null) {
-        // 아이폰/안드로이드 센서 수치에 따른 투명도 반응
-        let opacity = (accY - 2) / 7;
-        opacity = Math.min(Math.max(opacity, 0.0), 0.85);
-        smokeOverlay.setAttribute('material', 'opacity', opacity);
+    function updateSmokeOpacity(motionEvent) {
+      // 1. 기기 높이(가속도) 측정
+      let accY = 9.8; 
+      if (motionEvent && motionEvent.accelerationIncludingGravity) {
+        accY = motionEvent.accelerationIncludingGravity.y || 9.8;
       }
+
+      // 2. 카메라 시선 각도(X축 회전/Pitch) 측정
+      // 라디안 단위를 십진법 각도(degree)로 변환 (-90도: 바닥, 0도: 정면, +90도: 천장)
+      const rotation = camera.getAttribute('rotation');
+      const pitch = rotation ? rotation.x : 0;
+
+      // 3. 높이 점수 계산 (서 있으면 1.0, 쪼그려 앉으면 0.0)
+      let heightScore = (accY - 2) / 7;
+      heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
+
+      // 4. 시선 점수 계산 (위를 올려다볼수록 1.0에 가까워짐)
+      // pitch가 0(정면) 이하일 때는 0, 위로 들수록(0~60도) 점수 증가
+      let lookUpScore = pitch / 60; 
+      lookUpScore = Math.min(Math.max(lookUpScore, 0.0), 1.0);
+
+      // 5. 최종 연기 농도 계산
+      // 낮은 자세(heightScore가 낮음)여도 위를 바라보면(lookUpScore가 높음) 연기가 자욱해짐
+      let finalOpacity = Math.max(heightScore, lookUpScore) * 0.85;
+
+      // 연기 투명도 적용
+      smokeOverlay.setAttribute('material', 'opacity', finalOpacity);
     }
 
-    // 아이폰 iOS 센서 권한 요청
-    function requestMotionPermission() {
+    // 모션 센서 이벤트 연결
+    function handleMotion(event) {
+      updateSmokeOpacity(event);
+    }
+
+    // 아이폰/안드로이드 권한 요청 및 이벤트 등록
+    function requestPermissions() {
       if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission()
           .then(response => {
@@ -52,9 +76,9 @@
       }
     }
 
-    // 화면 터치 시 권한 요청 실행
-    window.addEventListener('click', requestMotionPermission, { once: true });
-    window.addEventListener('touchstart', requestMotionPermission, { once: true });
+    // 첫 화면 터치 시 센서 연동 시작
+    window.addEventListener('click', requestPermissions, { once: true });
+    window.addEventListener('touchstart', requestPermissions, { once: true });
   </script>
 </body>
 </html>
