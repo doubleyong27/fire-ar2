@@ -4,81 +4,100 @@
   <meta charset="utf-8">
   <title>소방안전 AR 농연 체험</title>
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    /* 실제 연기 질감 텍스처를 사용하는 2D 오버레이 레이어 */
+    #smoke-layer {
+      position: fixed;
+      top: -10%;
+      left: -10%;
+      width: 120vw;
+      height: 120vh;
+      /* 투명 배경의 검은 연기 이미지 적용 (무료 오픈소스 CDN) */
+      background-image: url('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/lava/cloud.png');
+      background-size: cover;
+      background-position: center;
+      /* 연기처럼 자욱하게 만드는 필터 효과 */
+      filter: invert(1) brightness(0.2) contrast(1.5);
+      opacity: 0.85; /* 초기 상태: 검은 연기 가득함 */
+      pointer-events: none;
+      z-index: 9999;
+      transition: opacity 0.3s ease;
+      /* 연기가 유기적으로 조금씩 움직이는 애니메이션 */
+      animation: smokeMove 12s infinite linear;
+    }
+
+    /* 연기가 스르륵 움직이는 효과 */
+    @keyframes smokeMove {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(-3%, -2%) scale(1.05); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+  </style>
 </head>
 
 <body style="margin: 0; overflow: hidden;">
+
+  <div id="smoke-layer"></div>
+
   <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-    <a-entity id="rig" position="0 1.6 0">
-      <!-- look-controls로 스마트폰 시선 방향 추적 -->
-      <a-camera id="camera" look-controls></a-camera>
-      
-      <!-- 화면 가림 연기 오버레이 -->
-      <a-plane id="smoke-overlay" 
-               position="0 0 -0.5" 
-               width="3" height="3" 
-               color="#000000" 
-               material="transparent: true; opacity: 0.8;">
-      </a-plane>
-    </a-entity>
+    <a-camera id="camera" look-controls></a-camera>
   </a-scene>
 
   <script>
-    const smokeOverlay = document.querySelector('#smoke-overlay');
+    const smokeLayer = document.getElementById('smoke-layer');
     const camera = document.querySelector('#camera');
 
-    function updateSmokeOpacity(motionEvent) {
-      // 1. 기기 높이(가속도) 측정
-      let accY = 9.8; 
-      if (motionEvent && motionEvent.accelerationIncludingGravity) {
-        accY = motionEvent.accelerationIncludingGravity.y || 9.8;
-      }
-
-      // 2. 카메라 시선 각도(X축 회전/Pitch) 측정
-      // 라디안 단위를 십진법 각도(degree)로 변환 (-90도: 바닥, 0도: 정면, +90도: 천장)
+    function updateOpacity() {
+      // 1. 시선 각도(Pitch) 가져오기
       const rotation = camera.getAttribute('rotation');
-      const pitch = rotation ? rotation.x : 0;
+      const pitch = rotation ? rotation.x : 0; 
 
-      // 3. 높이 점수 계산 (서 있으면 1.0, 쪼그려 앉으면 0.0)
-      let heightScore = (accY - 2) / 7;
-      heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
-
-      // 4. 시선 점수 계산 (위를 올려다볼수록 1.0에 가까워짐)
-      // pitch가 0(정면) 이하일 때는 0, 위로 들수록(0~60도) 점수 증가
-      let lookUpScore = pitch / 60; 
+      // 2. 위를 바라볼 때 점수 (위로 올릴수록 연기 짙어짐)
+      let lookUpScore = pitch / 45; 
       lookUpScore = Math.min(Math.max(lookUpScore, 0.0), 1.0);
 
-      // 5. 최종 연기 농도 계산
-      // 낮은 자세(heightScore가 낮음)여도 위를 바라보면(lookUpScore가 높음) 연기가 자욱해짐
-      let finalOpacity = Math.max(heightScore, lookUpScore) * 0.85;
+      // 3. 기기 가속도(높이) 계산
+      let heightScore = 0.85; 
+      if (window.currentAccY !== undefined) {
+        // 서 있음(AccY 큼) -> 연기 자욱 / 낮게 숙임(AccY 작음) -> 연기 옅어짐
+        heightScore = (window.currentAccY - 2) / 6;
+        heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
+      }
 
-      // 연기 투명도 적용
-      smokeOverlay.setAttribute('material', 'opacity', finalOpacity);
+      // 4. 최종 연기 질감 투명도 조절
+      let finalOpacity = Math.max(heightScore, lookUpScore) * 0.9;
+
+      // 적용
+      smokeLayer.style.opacity = finalOpacity;
+
+      requestAnimationFrame(updateOpacity);
     }
 
-    // 모션 센서 이벤트 연결
+    // 모션 센서 이벤트
     function handleMotion(event) {
-      updateSmokeOpacity(event);
+      if (event.accelerationIncludingGravity) {
+        window.currentAccY = event.accelerationIncludingGravity.y;
+      }
     }
 
-    // 아이폰/안드로이드 권한 요청 및 이벤트 등록
-    function requestPermissions() {
+    // 권한 요청 및 실행
+    function initSensors() {
       if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission()
           .then(response => {
             if (response === 'granted') {
               window.addEventListener('devicemotion', handleMotion);
             }
-          })
-          .catch(console.error);
+          });
       } else {
         window.addEventListener('devicemotion', handleMotion);
       }
+      updateOpacity();
     }
 
-    // 첫 화면 터치 시 센서 연동 시작
-    window.addEventListener('click', requestPermissions, { once: true });
-    window.addEventListener('touchstart', requestPermissions, { once: true });
+    window.addEventListener('click', initSensors, { once: true });
+    window.addEventListener('touchstart', initSensors, { once: true });
   </script>
 </body>
 </html>
