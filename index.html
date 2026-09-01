@@ -15,7 +15,7 @@
       background-color: black;
     }
 
-    /* 1. 순수 스마트폰 카메라 비디오 화면 (배경) */
+    /* 1. 배경 카메라 비디오 화면 */
     #webcam-video {
       position: absolute;
       top: 0;
@@ -26,7 +26,7 @@
       z-index: 1;
     }
 
-    /* 2. 실제 연기 질감 텍스처 (오버레이 레이어) */
+    /* 2. 연기 질감 오버레이 */
     #smoke-layer {
       position: absolute;
       top: -10%;
@@ -37,21 +37,35 @@
       background-size: cover;
       background-position: center;
       filter: invert(1) brightness(0.15) contrast(1.8);
-      opacity: 0.85; /* 초기 상태: 검은 연기 가득함 */
+      opacity: 0.85; /* 초기 상태: 검은 연기 */
       pointer-events: none;
       z-index: 2;
       transition: opacity 0.2s ease;
       animation: smokeMove 12s infinite linear;
     }
 
-    /* 연기가 살렁거리는 효과 */
     @keyframes smokeMove {
       0% { transform: translate(0, 0) scale(1); }
       50% { transform: translate(-3%, -2%) scale(1.05); }
       100% { transform: translate(0, 0) scale(1); }
     }
 
-    /* 시작 안내 메시지 */
+    /* 3. 센서 작동 확인용 상단 디버그 박스 */
+    #debug-info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #00ff00;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* 4. 터치 안내문 */
     #start-notice {
       position: absolute;
       top: 50%;
@@ -61,10 +75,10 @@
       font-family: sans-serif;
       font-size: 18px;
       font-weight: bold;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.8);
       padding: 15px 25px;
       border-radius: 30px;
-      z-index: 3;
+      z-index: 10;
       text-align: center;
       pointer-events: none;
     }
@@ -73,33 +87,29 @@
 
 <body>
 
-  <!-- 실시간 스마트폰 카메라 영상 -->
   <video id="webcam-video" autoplay playsinline muted></video>
-
-  <!-- 연기 레이어 -->
   <div id="smoke-layer"></div>
-
-  <!-- 화면 터치 안내 안내문 -->
+  <div id="debug-info">화면을 터치하여 센서를 연결하세요.</div>
   <div id="start-notice">화면을 터치하여 체험을 시작하세요</div>
 
   <script>
     const video = document.getElementById('webcam-video');
     const smokeLayer = document.getElementById('smoke-layer');
     const startNotice = document.getElementById('start-notice');
+    const debugInfo = document.getElementById('debug-info');
 
     let currentAccY = 9.8;
-    let currentBeta = 0; // 기울기 각도
+    let currentBeta = 0;
 
-    // 1. 순수 웹캠/스마트폰 후면 카메라 활성화
+    // 1. 후면 카메라 켜기
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { exact: "environment" } }, // 후면 카메라 우선
+          video: { facingMode: { exact: "environment" } },
           audio: false
         });
         video.srcObject = stream;
       } catch (err) {
-        // 후면 카메라 지정 실패 시 일반 카메라로 재시도
         try {
           const fallbackStream = await navigator.mediaDevices.getUserMedia({
             video: true,
@@ -107,56 +117,69 @@
           });
           video.srcObject = fallbackStream;
         } catch (e) {
-          alert("카메라 권한을 허용해 주세요.");
+          debugInfo.innerText = "카메라 권한 오류";
         }
       }
     }
 
-    // 2. 실시간 기울기/높이에 따른 연기 투명도 계산
+    // 2. 실시간 투명도 연산 루프
     function updateSmokeOpacity() {
-      // 1) 고개를 올리는 각도 (beta: 0도 정면 ~ 90도 천장)
-      let lookUpScore = currentBeta / 60;
-      lookUpScore = Math.min(Math.max(lookUpScore, 0.0), 1.0);
-
-      // 2) 몸 낮춤 높이 (accY: 9.8 서 있음 ~ 2 이하 낮게 숙임)
-      let heightScore = (currentAccY - 2) / 6;
+      // 높이 계산 보정: accY가 9.8 근처(서 있음) -> 점수 1.0 / 3.0 이하(낮은 자세) -> 점수 0.0
+      let heightScore = (currentAccY - 3) / 6;
       heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
 
-      // 최종 연기 농도 (자세가 높거나 OR 위를 바라볼 때 자욱해짐)
-      let finalOpacity = Math.max(heightScore, lookUpScore) * 0.9;
+      // 기울기 계산 보정: 스마트폰을 세웠을 때 0도~90도 반응
+      let lookUpScore = Math.abs(currentBeta) / 60;
+      lookUpScore = Math.min(Math.max(lookUpScore, 0.0), 1.0);
+
+      // 둘 중 하나라도 높으면 연기가 자욱해짐 (서 있거나 OR 위를 바라볼 때)
+      let finalOpacity = Math.max(heightScore, lookUpScore) * 0.85;
+
+      // 최소 투명도 보정 (바닥을 보고 낮은 자세를 취하면 연기가 완전히 투명해짐)
+      if (heightScore < 0.2 && lookUpScore < 0.2) {
+        finalOpacity = 0.0;
+      }
+
       smokeLayer.style.opacity = finalOpacity;
+
+      // 상단 디버그 박스에 실시간 수치 출력
+      debugInfo.innerText = `높이(Y): ${currentAccY.toFixed(1)} | 각도(Beta): ${currentBeta.toFixed(1)} | 투명도: ${finalOpacity.toFixed(2)}`;
 
       requestAnimationFrame(updateSmokeOpacity);
     }
 
-    // 3. 모션 및 방향 센서 이벤트
     function handleMotion(event) {
       if (event.accelerationIncludingGravity) {
-        currentAccY = event.accelerationIncludingGravity.y || 9.8;
+        // Y축 가속도 (절대값 처리하여 방향 보정)
+        currentAccY = Math.abs(event.accelerationIncludingGravity.y || 9.8);
       }
     }
 
     function handleOrientation(event) {
-      // event.beta: 스마트폰 전후 기울기 각도
       if (event.beta !== null) {
         currentBeta = event.beta;
       }
     }
 
-    // 4. 터치 시 센서 및 카메라 권한 시작
-    function initApp() {
-      startNotice.style.display = 'none'; // 안내문 숨김
-      startCamera(); // 카메라 시작
+    // 3. 센서 권한 및 통합 실행
+    async function initApp() {
+      startNotice.style.display = 'none';
+      await startCamera();
 
-      // iOS 권한 요청 처리
-      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-        DeviceMotionEvent.requestPermission().then(response => {
-          if (response === 'granted') {
+      // iOS 권한 승인 처리
+      if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const orientPermission = await DeviceOrientationEvent.requestPermission();
+          const motionPermission = await DeviceMotionEvent.requestPermission();
+          if (orientPermission === 'granted' && motionPermission === 'granted') {
             window.addEventListener('devicemotion', handleMotion);
             window.addEventListener('deviceorientation', handleOrientation);
           }
-        });
+        } catch (e) {
+          debugInfo.innerText = "센서 권한 거부됨";
+        }
       } else {
+        // 안드로이드 및 일반 브라우저
         window.addEventListener('devicemotion', handleMotion);
         window.addEventListener('deviceorientation', handleOrientation);
       }
