@@ -26,7 +26,7 @@
       z-index: 1;
     }
 
-    /* 2. 이미지 없이 100% CSS로 생성하는 얼룩 없는 농연 컨테이너 */
+    /* 2. 연기 질감이 더해진 그라데이션 컨테이너 */
     #smoke-container {
       position: absolute;
       top: 0;
@@ -38,12 +38,12 @@
       opacity: 0.85;
       transition: opacity 0.3s cubic-bezier(0.25, 1, 0.5, 1), transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
       
-      /* 천장은 자욱하고 아래는 뚫리는 경계 유연화 마스크 */
+      /* 천장은 자욱하고 아래는 뚫리는 경계 마스크 */
       mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 75%);
       -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0) 75%);
     }
 
-    /* 노이즈 없는 부드러운 연기 질감 1 */
+    /* SVG 연기 질감 필터가 적용된 노이즈 레이어 1 */
     .smoke-layer-1 {
       position: absolute;
       top: -30%;
@@ -51,11 +51,11 @@
       width: 140vw;
       height: 120vh;
       background: radial-gradient(circle at 50% 30%, rgba(15, 15, 15, 0.95) 0%, rgba(5, 5, 5, 0.8) 50%, transparent 80%);
-      filter: blur(25px);
+      filter: url(#smoke-texture) blur(18px);
       animation: smoothFlow1 12s infinite ease-in-out;
     }
 
-    /* 노이즈 없는 부드러운 연기 질감 2 */
+    /* 보조 연기 레이어 2 */
     .smoke-layer-2 {
       position: absolute;
       top: -20%;
@@ -63,19 +63,19 @@
       width: 120vw;
       height: 110vh;
       background: radial-gradient(circle at 40% 20%, rgba(25, 25, 25, 0.9) 0%, rgba(10, 10, 10, 0.6) 45%, transparent 75%);
-      filter: blur(35px);
+      filter: url(#smoke-texture) blur(24px);
       animation: smoothFlow2 9s infinite ease-in-out;
     }
 
     @keyframes smoothFlow1 {
       0% { transform: scale(1) translate(0, 0); }
-      50% { transform: scale(1.08) translate(-2%, 2%); }
+      50% { transform: scale(1.06) translate(-2%, 2%); }
       100% { transform: scale(1) translate(0, 0); }
     }
 
     @keyframes smoothFlow2 {
       0% { transform: scale(1.02) translate(0, 0); }
-      50% { transform: scale(1.1) translate(2%, -1%); }
+      50% { transform: scale(1.08) translate(2%, -1%); }
       100% { transform: scale(1.02) translate(0, 0); }
     }
 
@@ -103,7 +103,15 @@
 
   <video id="webcam-video" autoplay playsinline muted></video>
 
-  <!-- 이미지 얼룩 없는 100% 부드러운 연기 레이어 -->
+  <!-- 실시간 연기 입자 질감 생성기 (SVG 필터) -->
+  <svg style="display:none;">
+    <filter id="smoke-texture">
+      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="35" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
+  <!-- 질감이 가공된 농연 레이어 -->
   <div id="smoke-container">
     <div class="smoke-layer-1"></div>
     <div class="smoke-layer-2"></div>
@@ -139,22 +147,19 @@
     }
 
     function updateSmokeEffect() {
-      // 1. 높이 점수 감도 완화 (조금만 숙여도 빠르게 반영)
+      // 1. 높이 점수 감도
       let heightScore = (currentAccY - 4) / 4.5;
       heightScore = Math.min(Math.max(heightScore, 0.0), 1.0);
 
-      // 2. 시선 각도 감도 완화 (완전히 바닥을 안 봐도, 정면 이하로 약간만 내려가면 연기가 걷힘)
-      // beta 각도가 약 35도 이상(조금만 숙임)부터 시야가 트임
+      // 2. 시선 각도 감도 (정면 이하로 살짝만 내려가면 연기가 걷힘)
       let lookUpScore = (currentBeta - 20) / 45;
       lookUpScore = Math.min(Math.max(lookUpScore, 0.0), 1.0);
 
       let finalScore = Math.max(heightScore, lookUpScore);
 
-      // 위치 및 투명도 계산
-      let translateY = (1 - finalScore) * -45; // 적당한 각도에서도 연기가 위로 훌쩍 올려짐
+      let translateY = (1 - finalScore) * -45; 
       let opacity = 0.1 + (finalScore * 0.8);
 
-      // 적절히 숙인 자세에서도 시야 확보가 원활하도록 임계치 설정
       if (finalScore < 0.35) {
         translateY = -55;
         opacity = 0.1;
